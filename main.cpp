@@ -8,6 +8,7 @@
 #include <fstream>
 #include <complex>
 #include <chrono>
+#include <omp.h>
 
 using namespace std;
 
@@ -26,6 +27,7 @@ int main ( int argc, char *argv[] )
     double *ctf = new double[m];
     double *sigRcp = new double[m];
     double *disturb = new double[K];
+    double *res = new double[K];
     double dat0, dat1, pri0, pri1, ctf0, sigRcp0;
 
     /***************************
@@ -80,10 +82,14 @@ int main ( int argc, char *argv[] )
          exit(1);
     }
 
+#pragma omp parallel for num_threads(96) schedule(static) 
     for(unsigned int t = 0; t < K; t++)
     {
-        double result = logDataVSPrior(dat, pri, ctf, sigRcp, m, disturb[t]);
-        fout << t+1 << ": " << result << endl;
+        res[t] = logDataVSPrior(dat, pri, ctf, sigRcp, m, disturb[t]);
+    }
+    for(unsigned int t = 0; t < K; t++)
+    {
+        fout << t+1 << ": " << res[t] << endl;
     }
     fout.close();
 
@@ -105,11 +111,19 @@ double logDataVSPrior(const Complex* dat, const Complex* pri, const double* ctf,
 {
     double result = 0.0;
 
+#pragma ivdep
+    double r, image;
     for (int i = 0; i < num; i++)
     {
-
-          result += ( norm( dat[i] - disturb0 * ctf[i] * pri[i] ) * sigRcp[i] );
-
+	  r = dat[i].real() - disturb0 * ctf[i] * pri[i].real();
+	  image = dat[i].imag() - disturb0 * ctf[i] * pri[i].imag();
+	  result += r*r*sigRcp[i] + image*image*sigRcp[i];
     }
+//     for (int i = 0; i < num; i++)
+//     {
+
+//           result += ( norm( dat[i] - disturb0 * ctf[i] * pri[i] ) * sigRcp[i] );
+
+//     }
     return result;
 }
