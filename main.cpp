@@ -6,9 +6,11 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <complex>
+//#include <complex>
 #include <chrono>
 #include <omp.h>
+#include <immintrin.h>
+#include <xmmintrin.h>
 
 using namespace std;
 
@@ -18,12 +20,14 @@ typedef chrono::high_resolution_clock Clock;
 const int m=1638400;	// DO NOT CHANGE!!
 const int K=100000;	// DO NOT CHANGE!!
 
-double logDataVSPrior(const Complex* dat, const Complex* pri, const double* ctf, const double* sigRcp, const int num, const double disturb0);
+double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pri_r, const double* pri_i, const double* ctf, const double* sigRcp, const int num, const double disturb0);
 
 int main ( int argc, char *argv[] )
 { 
-    Complex *dat = new Complex[m];
-    Complex *pri = new Complex[m];
+//    Complex *dat = new Complex[m];
+//    Complex *pri = new Complex[m];
+    double *dat_r = new double[m], *dat_i = new double[m];
+    double *pri_r = new double[m], *pri_i = new double[m];
     double *ctf = new double[m];
     double *sigRcp = new double[m];
     double *disturb = new double[K];
@@ -45,8 +49,12 @@ int main ( int argc, char *argv[] )
     while( !fin.eof() ) 
     {
         fin >> dat0 >> dat1 >> pri0 >> pri1 >> ctf0 >> sigRcp0;
-        dat[i] = Complex (dat0, dat1);
-        pri[i] = Complex (pri0, pri1);
+//        dat[i] = Complex (dat0, dat1);
+//        pri[i] = Complex (pri0, pri1);
+        dat_r[i] = dat0;
+	    dat_i[i] = dat1;
+		pri_r[i] = pri0;
+		pri_i[i] = pri1;
         ctf[i] = ctf0;
         sigRcp[i] = sigRcp0;
         i++;
@@ -85,7 +93,7 @@ int main ( int argc, char *argv[] )
 #pragma omp parallel for num_threads(96) schedule(static) 
     for(unsigned int t = 0; t < K; t++)
     {
-        res[t] = logDataVSPrior(dat, pri, ctf, sigRcp, m, disturb[t]);
+        res[t] = logDataVSPrior(dat_r, dat_i, pri_r, pri_i, ctf, sigRcp, m, disturb[t]);
     }
     for(unsigned int t = 0; t < K; t++)
     {
@@ -107,7 +115,7 @@ int main ( int argc, char *argv[] )
     return EXIT_SUCCESS;
 }
 
-double logDataVSPrior(const Complex* dat, const Complex* pri, const double* ctf, const double* sigRcp, const int num, const double disturb0)
+double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pri_r, const double* pri_i, const double* ctf, const double* sigRcp, const int num, const double disturb0)
 {
     double result = 0.0;
 
@@ -115,8 +123,8 @@ double logDataVSPrior(const Complex* dat, const Complex* pri, const double* ctf,
     double r, image;
     for (int i = 0; i < num; i++)
     {
-	  r = dat[i].real() - disturb0 * ctf[i] * pri[i].real();
-	  image = dat[i].imag() - disturb0 * ctf[i] * pri[i].imag();
+	  r = dat_r[i] - disturb0 * ctf[i] * pri_r[i];
+	  image = dat_i[i] - disturb0 * ctf[i] * pri_i[i];
 	  result += r*r*sigRcp[i] + image*image*sigRcp[i];
     }
 //     for (int i = 0; i < num; i++)
