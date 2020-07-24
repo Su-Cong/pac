@@ -106,8 +106,10 @@ int main ( int argc, char *argv[] )
     auto compTime = chrono::duration_cast<chrono::microseconds>(endTime - startTime);
     cout << "Computing time=" << compTime.count() << " microseconds" << endl;
 
-    delete[] dat;
-    delete[] pri;
+    delete[] dat_r;
+    delete[] dat_i;
+    delete[] pri_r;
+    delete[] pri_i;
 
     delete[] ctf;
     delete[] sigRcp;
