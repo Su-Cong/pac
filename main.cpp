@@ -14,7 +14,7 @@
 
 using namespace std;
 
-typedef complex<double> Complex;
+//typedef complex<double> Complex;
 typedef chrono::high_resolution_clock Clock;
 
 const int m=1638400;	// DO NOT CHANGE!!
