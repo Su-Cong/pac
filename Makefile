@@ -1,5 +1,5 @@
 CC	= g++
-CFLAGS	= -std=c++11 
+CFLAGS	= -std=c++11 -O3 -fopenmp -march=native -ffast-math
 
 all: logVS
 
