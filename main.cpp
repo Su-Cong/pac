@@ -121,14 +121,33 @@ double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pr
 {
     double result = 0.0;
 
-#pragma ivdep
-    double r, image;
-    for (int i = 0; i < num; i++)
+    __m512 dis_v = _mm512_set1_pd(disturb0);
+    for(int i = 0; i < num; i+=8)
     {
-	  r = dat_r[i] - disturb0 * ctf[i] * pri_r[i];
-	  image = dat_i[i] - disturb0 * ctf[i] * pri_i[i];
-	  result += r*r*sigRcp[i] + image*image*sigRcp[i];
-    }
+    	__m512d dat_r_v = _mm512_loadu_pd(dat_r + i);
+	    __m512d dat_i_v = _mm512_loadu_pd(dat_i + i);
+	    __m512d pri_r_v = _mm512_loadu_pd(pri_r + i);
+	    __m512d pri_i_v = _mm512_loadu_pd(pri_i + i);
+	    __m512d ctf_v = _mm512_loadu_pd(ctf + i);
+	    __m512d sig_v = _mm512_loadu_pd(sigRcp + i);
+	    
+	    //calculation
+	    __m512 mid_v = _mm512_mul_pd(dis_v, ctf_v);
+	    __m512 real = _mm512_fnmadd_pd(mid_v, pri_r_v, dat_r_v);
+	    __m512 imag = _mm512_fnmadd_pd(mid_v, pri_i_v, dat_i_v);
+	    real = _mm512_mul_pd(real, real);
+	    iamg = _mm512_mul_pd(imag, imag);
+	    real = _mm512_add_pd(real, iamg);
+	    result += _mm512_reduce_add_pd(_mm512_mul_pd(real, sig_v));
+	}
+//#pragma ivdep
+//    double r, image;
+//    for (int i = 0; i < num; i++)
+//    {
+//	  r = dat_r[i] - disturb0 * ctf[i] * pri_r[i];
+//	  image = dat_i[i] - disturb0 * ctf[i] * pri_i[i];
+//	  result += r*r*sigRcp[i] + image*image*sigRcp[i];
+//    }
 //     for (int i = 0; i < num; i++)
 //     {
 
