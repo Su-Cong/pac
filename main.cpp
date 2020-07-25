@@ -137,7 +137,7 @@ double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pr
 	    __m512d imag = _mm512_fnmadd_pd(mid_v, pri_i_v, dat_i_v);
 	    real = _mm512_mul_pd(real, real);
 	    imag = _mm512_mul_pd(imag, imag);
-	    real = _mm512_add_pd(real, iamg);
+	    real = _mm512_add_pd(real, imag);
 	    result += _mm512_reduce_add_pd(_mm512_mul_pd(real, sig_v));
 	}
 //#pragma ivdep
