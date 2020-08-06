@@ -121,6 +121,7 @@ int main ( int argc, char *argv[] )
 	#pragma omp parallel for schedule(static) num_threads(96)
 	for(unsigned int t = 0; t < K; t++)
 	{
+		#pragma ivdep
 		for(int threadId = 0; threadId < numberThreads; threadId++)
 		{
 			result += resultBuffer[threadId * K + t];
