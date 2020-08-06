@@ -20,7 +20,7 @@ typedef chrono::high_resolution_clock Clock;
 const int m=1638400;	// DO NOT CHANGE!!
 const int K=100000;	// DO NOT CHANGE!!
 
-double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pri_r, const double* pri_i, const double* ctf, const double* sigRcp, const int num, const double disturb0);
+double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pri_r, const double* pri_i, const double* ctf, const double* sigRcp, const int num, const double disturb0, int chunkId);
 
 int main ( int argc, char *argv[] )
 { 
@@ -31,7 +31,7 @@ int main ( int argc, char *argv[] )
     double *ctf = new double[m];
     double *sigRcp = new double[m];
     double *disturb = new double[K];
-    double *res = new double[K];
+    double *result = new double[K];
     double dat0, dat1, pri0, pri1, ctf0, sigRcp0;
 
     /***************************
@@ -82,24 +82,68 @@ int main ( int argc, char *argv[] )
      * ************************/
     auto startTime = Clock::now(); 
 
-    ofstream fout;
-    fout.open("result.dat");
-    if(!fout.is_open())
+//    ofstream fout;
+//    fout.open("result.dat");
+//    if(!fout.is_open())
+//    {
+//         cout << "Error opening file for result" << endl;
+//         exit(1);
+//    }
+     
+    FILE *fp;
+    fp = fopen("result.dat","w");
+    if(fp == NULL)
     {
-         cout << "Error opening file for result" << endl;
-         exit(1);
-    }
+    	cout << "Error opening file for result" << endl;
+    	exit(1);
+	}
+	int numberThreads = 1;
+	int chunkNum = 3200;
+	double *resultBuffer = new double[K * numberThreads];
+	
+#pragma omp parallel	
+{
+	#pragma omp single
+	{
+		numberThreads = omp_get_num_threads();
+	}
+	#pragma omp parallel for schedule(static) num_threads(96)
+	for(int chunkId = 0; chunkId < chunkNum; chunkId++)
+	{
+		int tid = omp_get_thread_num();
+		
+		for(unsigned int t = 0; t < K; t++)
+		{
+			double tmpResult = logDataVSPrior(dat_r, dat_i, pri_r, pri_i, ctf, sigRcp, m/chunkNum, disturb[t], chunkId);
+			resultBuffer[tid * K + t] += tmpResult;
+		}
+	}
+	#pragma omp parallel for schedule(static) num_threads(96)
+	for(unsigned int t = 0; t < K; t++)
+	{
+		for(int threadId = 0; threadId < numberThreads; threadId++)
+		{
+			result += resultBuffer[threadId * K + t];
+		}
+	}
+}
 
-#pragma omp parallel for num_threads(96) schedule(static) 
     for(unsigned int t = 0; t < K; t++)
     {
-        res[t] = logDataVSPrior(dat_r, dat_i, pri_r, pri_i, ctf, sigRcp, m, disturb[t]);
-    }
-    for(unsigned int t = 0; t < K; t++)
-    {
-        fout << t+1 << ": " << res[t] << endl;
-    }
-    fout.close();
+    	fprintf(fp,"%d: %.6g\n", t+1, result[t]);
+	}
+	fclose(fp);
+
+//#pragma omp parallel for num_threads(96) schedule(static) 
+//    for(unsigned int t = 0; t < K; t++)
+//    {
+//        res[t] = logDataVSPrior(dat_r, dat_i, pri_r, pri_i, ctf, sigRcp, m, disturb[t]);
+//    }
+//    for(unsigned int t = 0; t < K; t++)
+//    {
+//        fout << t+1 << ": " << res[t] << endl;
+//    }
+//    fout.close();
 
     auto endTime = Clock::now(); 
 
@@ -114,15 +158,20 @@ int main ( int argc, char *argv[] )
     delete[] ctf;
     delete[] sigRcp;
     delete[] disturb;
+    
+    delete[] resultBuffer;
+    delete[] result;
     return EXIT_SUCCESS;
 }
 
-double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pri_r, const double* pri_i, const double* ctf, const double* sigRcp, const int num, const double disturb0)
+double logDataVSPrior(const double* dat_r, const double* dat_i, const double* pri_r, const double* pri_i, const double* ctf, const double* sigRcp, const int num, const double disturb0, int chunkId)
 {
     double result = 0.0;
+    int start = num * chunkId;
+	int end = start + num;
 
     __m512d dis_v = _mm512_set1_pd(disturb0);
-    for(int i = 0; i < num; i+=8)
+    for(int i = start; i < end; i+=8)
     {
     	__m512d dat_r_v = _mm512_loadu_pd(dat_r + i);
 	    __m512d dat_i_v = _mm512_loadu_pd(dat_i + i);
