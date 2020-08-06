@@ -124,7 +124,7 @@ int main ( int argc, char *argv[] )
 		#pragma ivdep
 		for(int threadId = 0; threadId < numberThreads; threadId++)
 		{
-			result += resultBuffer[threadId * K + t];
+			result[t] += resultBuffer[threadId * K + t];
 		}
 	}
 }
